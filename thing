@@ -5,35 +5,35 @@ require 'trollop'
 require 'set'
 require 'ruby-progressbar'
 
-opts = Trollop::options do
+opts = Trollop.options do
   opt :file, 'input file name', type: :string
 end
 
-Trollop::educate unless opts[:file]
-Trollop::die :file, "must refer to a file that exists" unless File.exist?(opts[:file]) if opts[:file]
+Trollop.educate unless opts[:file]
+Trollop.die :file, 'must refer to a file that exists' unless File.exist?(opts[:file])
 
-starting_partner_line = %r{^INFO\s__init__\s.*Indexing for partner\s(?<partner_code>\w+)\s(?<partner_name>.*)$}
-color_normalization_failure_line = %r{^WARNING\s\w+\s.*color\s\d+\sunable to normalize\s(?<color>.*)$}
-category_mapping_failure_line = %r{^ERROR\s\w+\s.*category\s\d+\scategory mapping not found for\s(?<category>.*)$}
+starting_partner = /^INFO\s__init__\s.*Indexing for partner\s(?<partner_code>\w+)\s(?<partner_name>.*)$/
+color_normalization_failure = /^WARNING\s\w+\s.*color\s\d+\sunable to normalize\s(?<color>.*)$/
+category_mapping_failure = /^ERROR\s\w+\s.*category\s\d+\scategory mapping not found for\s(?<category>.*)$/
 
 current_partner = nil
 data = {}
 
-File.open(opts[:file], mode = 'r') do |f|
+File.open(opts[:file], 'r') do |f|
   progressbar = ProgressBar.create(title: 'Reading file', total: f.size, format: '%t: |%B| %p%% %e')
   pos = 0
 
   f.each_line do |line|
     # puts "#{f.lineno}: #{line}"
     case
-    when starting_partner_line.match(line)
-      current_partner = starting_partner_line.match(line)[:partner_code]
+    when starting_partner.match(line)
+      current_partner = starting_partner.match(line)[:partner_code]
       # puts "Starting new partner: #{current_partner}"
-      data[current_partner] ||= {color: Set.new, category: Set.new}
-    when color_normalization_failure_line.match(line)
-      data[current_partner][:color] << color_normalization_failure_line.match(line)[:color]
-    when category_mapping_failure_line.match(line)
-      data[current_partner][:category] << category_mapping_failure_line.match(line)[:category].split(':', 2)[1]
+      data[current_partner] ||= { color: Set.new, category: Set.new }
+    when color_normalization_failure.match(line)
+      data[current_partner][:color] << color_normalization_failure.match(line)[:color]
+    when category_mapping_failure.match(line)
+      data[current_partner][:category] << category_mapping_failure.match(line)[:category].split(':', 2)[1]
     end
     progressbar.progress += f.pos - pos
     pos = f.pos
@@ -42,12 +42,12 @@ File.open(opts[:file], mode = 'r') do |f|
 end
 
 data.each do |partner, partner_data|
-  puts "#{partner}"
-  if partner_data[:color].size > 0
+  puts partner.to_s
+  unless partner_data[:color].empty?
     puts "\tcolors not normalized (#{partner_data[:color].size}):"
     partner_data[:color].each { |color| puts "\t\t#{color}" }
   end
-  if partner_data[:category].size > 0
+  unless partner_data[:category].empty?
     puts "\tunmapped categories (#{partner_data[:category].size}):"
     partner_data[:category].each { |category| puts "\t\t#{category}" }
   end
